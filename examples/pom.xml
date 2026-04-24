@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.openharness4j</groupId>
         <artifactId>openharness4j</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
+        <version>0.2.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>openharness-examples</artifactId>
@@ -15,6 +15,7 @@
 
     <properties>
         <exec.skip>false</exec.skip>
+        <exec.mainClass>io.openharness4j.examples.verification.FeatureVerificationExample</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -22,6 +23,17 @@
             <groupId>io.openharness4j</groupId>
             <artifactId>openharness-agent-runtime</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.openharness4j</groupId>
+            <artifactId>openharness-memory-engine</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
@@ -31,7 +43,7 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <configuration>
-                    <mainClass>io.openharness4j.examples.SimpleAgentExample</mainClass>
+                    <mainClass>${exec.mainClass}</mainClass>
                     <skip>false</skip>
                 </configuration>
             </plugin>

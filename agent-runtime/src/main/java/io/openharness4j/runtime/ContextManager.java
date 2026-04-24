@@ -8,4 +8,7 @@ import java.util.List;
 public interface ContextManager {
 
     List<Message> init(AgentRequest request);
+
+    default void complete(AgentRequest request, List<Message> messages) {
+    }
 }

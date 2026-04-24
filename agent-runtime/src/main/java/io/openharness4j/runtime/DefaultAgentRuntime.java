@@ -81,12 +81,12 @@ public class DefaultAgentRuntime implements AgentRuntime {
                 llmResponse = llmAdapter.chat(List.copyOf(messages), toolRegistry.definitions());
             } catch (RuntimeException ex) {
                 trace.recordError(safeMessage(ex));
-                return response("LLM call failed: " + safeMessage(ex), trace, FinishReason.ERROR);
+                return response(request, messages, "LLM call failed: " + safeMessage(ex), trace, FinishReason.ERROR);
             }
 
             if (isEmpty(llmResponse)) {
                 trace.recordError("LLM returned an empty response");
-                return response("LLM returned an empty response.", trace, FinishReason.ERROR);
+                return response(request, messages, "LLM returned an empty response.", trace, FinishReason.ERROR);
             }
 
             trace.addUsage(llmResponse.usage());
@@ -97,7 +97,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
 
             List<ToolCall> toolCalls = llmResponse.effectiveToolCalls();
             if (toolCalls.isEmpty()) {
-                return response(finalContent(llmResponse), trace, FinishReason.STOP);
+                return response(request, messages, finalContent(llmResponse), trace, FinishReason.STOP);
             }
 
             for (ToolCall call : toolCalls) {
@@ -105,7 +105,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
             }
         }
 
-        return response("Agent stopped because max iteration limit was exceeded.", trace, FinishReason.MAX_ITERATION_EXCEEDED);
+        return response(request, messages, "Agent stopped because max iteration limit was exceeded.", trace, FinishReason.MAX_ITERATION_EXCEEDED);
     }
 
     private void handleToolCall(
@@ -166,7 +166,25 @@ public class DefaultAgentRuntime implements AgentRuntime {
         trace.recordToolResult(call, result, elapsedMillis(startedAt));
     }
 
-    private static AgentResponse response(String content, AgentTrace trace, FinishReason finishReason) {
+    private AgentResponse response(
+            AgentRequest request,
+            List<Message> messages,
+            String content,
+            AgentTrace trace,
+            FinishReason finishReason
+    ) {
+        try {
+            contextManager.complete(request, List.copyOf(messages));
+        } catch (RuntimeException ex) {
+            trace.recordError("context completion failed: " + safeMessage(ex));
+            return new AgentResponse(
+                    "Context completion failed: " + safeMessage(ex),
+                    trace.toolCalls(),
+                    trace.usage(),
+                    trace.traceId(),
+                    FinishReason.ERROR
+            );
+        }
         return new AgentResponse(content, trace.toolCalls(), trace.usage(), trace.traceId(), finishReason);
     }
 
