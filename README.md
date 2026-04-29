@@ -29,6 +29,7 @@ The current line includes:
 | Provider profiles and fallback adapter selection | Available |
 | CLI prompt, interactive, JSON, stream-json, and dry-run checks | Available |
 | Spring Boot auto-configuration | Available |
+| Spring AI `ChatModel` and `VectorStore` adapters | Available |
 
 See [docs/usage.md](docs/usage.md), [docs/cli.md](docs/cli.md), [docs/openharness-comparison.md](docs/openharness-comparison.md), and [产品文档.md](产品文档.md) for deeper product and usage notes.
 
@@ -50,6 +51,7 @@ OpenHarness4j
 ├── personal-agent      # Channel-facing personal agents and team runtime
 ├── plugin-engine       # Plugin descriptors and contribution lifecycle
 ├── starter             # Spring Boot auto-configuration
+├── spring-ai           # Spring AI ChatModel and VectorStore adapters
 ├── cli                 # Local command-line entry point
 ├── examples            # Runnable examples and feature verification
 ├── docs                # Extended English and Chinese guides
@@ -75,6 +77,7 @@ OpenHarness4j
 | `personal-agent` | `openharness-personal-agent` | You need channel-facing assistants or long-lived team agents. | `DefaultPersonalAgentService`, `PersonalAgentChannelAdapter`, `InMemoryTeamRuntime` | Optional |
 | `plugin-engine` | `openharness-plugin-engine` | You need plugins to contribute tools, skills, tasks, or sub-agents. | `OpenHarnessPlugin`, `PluginDescriptor`, `PluginManager`, `PluginContext` | Optional |
 | `starter` | `openharness-spring-boot-starter` | You want Spring Boot beans and configuration properties. | `OpenHarnessAutoConfiguration`, `OpenHarnessProperties` | Optional |
+| `spring-ai` | `openharness-spring-ai` | You want to reuse Spring AI `ChatModel` or `VectorStore` as OpenHarness components. | `SpringAiModelDriver`, `SpringAiVectorStore`, `SpringAiOpenHarnessAutoConfiguration` | Optional |
 | `cli` | `openharness-cli` | You want local prompt, interactive, JSON, stream-json, or dry-run checks. | `OpenHarnessCli`, `CliOptions`, `CliDryRun` | Optional |
 | `examples` | `openharness-examples` | You want runnable examples and release verification. | `SimpleAgentExample`, `FeatureVerificationExample`, `OpenHarnessFeatureVerifier` | Development |
 
@@ -98,6 +101,7 @@ flowchart LR
     PERSONAL["personal-agent"]
     PLUGIN["plugin-engine"]
     STARTER["starter"]
+    SPRINGAI["spring-ai"]
     CLI["cli"]
     EXAMPLES["examples"]
 
@@ -137,6 +141,8 @@ flowchart LR
     STARTER --> MULTI
     STARTER --> TOOLKIT
     STARTER --> PLUGIN
+    SPRINGAI --> LLM
+    SPRINGAI --> MEMORY
     CLI --> RUNTIME
     CLI --> LLM
     CLI --> SKILL
@@ -181,6 +187,7 @@ flowchart TB
     MULTI["Multi-Agent Runtime"]
     PERSONAL["Personal Agent and Team Runtime"]
     PLUGIN["Plugin Engine"]
+    SPRINGAI["Spring AI Adapter"]
 
     SKILL --> RUNTIME
     TASK --> RUNTIME
@@ -190,6 +197,8 @@ flowchart TB
     PLUGIN --> SKILL
     PLUGIN --> TASK
     PLUGIN --> MULTI
+    SPRINGAI --> LLM
+    SPRINGAI --> CONTEXT
 ```
 
 ## Quick Start
@@ -429,6 +438,12 @@ openharness:
     enabled: true
     max-messages: 20
     summarize-overflow: true
+    retrieval:
+      enabled: true
+      namespace: openharness
+      top-k: 5
+      similarity-threshold: 0.0
+      index-completed-messages: false
     context-files:
       enabled: true
       base-directory: .
@@ -464,6 +479,56 @@ openharness:
         model: llama3.1
 ```
 
+## Spring AI Integration
+
+Use `openharness-spring-ai` when a Spring Boot application already configures Spring AI providers through `spring.ai.*` properties and provider starters.
+
+```xml
+<dependency>
+    <groupId>io.openharness4j</groupId>
+    <artifactId>openharness-spring-ai</artifactId>
+    <version>1.5.0-SNAPSHOT</version>
+</dependency>
+```
+
+The adapter module contributes:
+
+| Spring AI bean | OpenHarness4j bean | Behavior |
+| --- | --- | --- |
+| `ChatModel` | `SpringAiModelDriver` as `LLMAdapter` | Converts Spring AI chat responses into `LLMResponse` and keeps OpenHarness in charge of tool execution. |
+| `VectorStore` | `SpringAiVectorStore` as `MemoryRetriever` | Provides RAG and semantic-memory retrieval for `RetrievalAugmentedContextManager`. |
+
+Tool execution remains controlled by OpenHarness4j. `SpringAiModelDriver` sets Spring AI tool calling to user-controlled mode so OpenHarness can continue to apply `ToolRegistry`, permission checks, audit, retry, and trace behavior.
+
+Example application configuration:
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4.1-mini
+    vectorstore:
+      redis:
+        uri: redis://localhost:6379
+
+openharness:
+  spring-ai:
+    model:
+      enabled: true
+    vector:
+      enabled: true
+      namespace: openharness
+  memory:
+    retrieval:
+      enabled: true
+      top-k: 5
+      similarity-threshold: 0.0
+      index-completed-messages: true
+```
+
 ## CLI
 
 Prompt mode:
@@ -496,6 +561,12 @@ Run the complete test suite:
 
 ```bash
 mvn test
+```
+
+Run only the Spring AI adapter tests:
+
+```bash
+mvn -pl spring-ai -am test
 ```
 
 Run the v1.5 feature verification example:

@@ -14,8 +14,11 @@ import io.openharness4j.llm.LLMAdapter;
 import io.openharness4j.llm.LLMAdapterRegistry;
 import io.openharness4j.llm.NamedLLMAdapter;
 import io.openharness4j.memory.MemoryContextManager;
+import io.openharness4j.memory.MemoryRecord;
+import io.openharness4j.memory.MemoryRetriever;
 import io.openharness4j.memory.MemorySessionManager;
 import io.openharness4j.memory.MemoryStore;
+import io.openharness4j.memory.RetrievalAugmentedContextManager;
 import io.openharness4j.multiagent.AgentTask;
 import io.openharness4j.multiagent.MultiAgentRequest;
 import io.openharness4j.multiagent.MultiAgentResponse;
@@ -108,6 +111,14 @@ class OpenHarnessAutoConfigurationTest {
                     assertFalse(context.containsBean("memoryStore"));
                     assertTrue(context.getBean(ContextManager.class) instanceof DefaultContextManager);
                 });
+    }
+
+    @Test
+    void wrapsContextManagerWhenMemoryRetrievalIsEnabled() {
+        contextRunner
+                .withUserConfiguration(MemoryRetrieverConfiguration.class)
+                .withPropertyValues("openharness.memory.retrieval.enabled=true")
+                .run(context -> assertTrue(context.getBean(ContextManager.class) instanceof RetrievalAugmentedContextManager));
     }
 
     @Test
@@ -444,6 +455,13 @@ class OpenHarnessAutoConfigurationTest {
         @Bean
         NamedLLMAdapter namedLLMAdapter() {
             return new NamedLLMAdapter("primary", (messages, tools) -> LLMResponse.text("primary"));
+        }
+    }
+
+    static class MemoryRetrieverConfiguration {
+        @Bean
+        MemoryRetriever memoryRetriever() {
+            return request -> List.of(new MemoryRecord("r1", "retrieved", Map.of(), 1.0));
         }
     }
 

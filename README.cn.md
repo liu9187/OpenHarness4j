@@ -29,6 +29,7 @@ OpenHarness4j 是一个面向 Java 的 Agent Harness 运行时，用于构建可
 | Provider Profile 与 Fallback 适配器选择 | 已提供 |
 | CLI prompt、interactive、JSON、stream-json 和 dry-run 检查 | 已提供 |
 | Spring Boot 自动配置 | 已提供 |
+| Spring AI `ChatModel` 和 `VectorStore` 适配 | 已提供 |
 
 更多产品和使用说明见 [docs/usage.md](docs/usage.md)、[docs/cli.md](docs/cli.md)、[docs/openharness-comparison.md](docs/openharness-comparison.md) 和 [产品文档.md](产品文档.md)。
 
@@ -50,6 +51,7 @@ OpenHarness4j
 ├── personal-agent      # 面向通道的个人智能体和团队运行时
 ├── plugin-engine       # 插件描述符和贡献生命周期
 ├── starter             # Spring Boot 自动配置
+├── spring-ai           # Spring AI ChatModel 和 VectorStore 适配
 ├── cli                 # 本地命令行入口
 ├── examples            # 可运行示例和功能验证
 ├── docs                # 扩展英文和中文指南
@@ -75,6 +77,7 @@ OpenHarness4j
 | `personal-agent` | `openharness-personal-agent` | 需要面向 IM/通道的助手或长期团队智能体。 | `DefaultPersonalAgentService`、`PersonalAgentChannelAdapter`、`InMemoryTeamRuntime` | 可选 |
 | `plugin-engine` | `openharness-plugin-engine` | 需要插件贡献工具、技能、任务或子智能体。 | `OpenHarnessPlugin`、`PluginDescriptor`、`PluginManager`、`PluginContext` | 可选 |
 | `starter` | `openharness-spring-boot-starter` | 需要 Spring Boot Bean 和配置属性。 | `OpenHarnessAutoConfiguration`、`OpenHarnessProperties` | 可选 |
+| `spring-ai` | `openharness-spring-ai` | 需要复用 Spring AI `ChatModel` 或 `VectorStore` 作为 OpenHarness 组件。 | `SpringAiModelDriver`、`SpringAiVectorStore`、`SpringAiOpenHarnessAutoConfiguration` | 可选 |
 | `cli` | `openharness-cli` | 需要本地 prompt、interactive、JSON、stream-json 或 dry-run 检查。 | `OpenHarnessCli`、`CliOptions`、`CliDryRun` | 可选 |
 | `examples` | `openharness-examples` | 需要可运行示例和发布验证。 | `SimpleAgentExample`、`FeatureVerificationExample`、`OpenHarnessFeatureVerifier` | 开发 |
 
@@ -98,6 +101,7 @@ flowchart LR
     PERSONAL["personal-agent"]
     PLUGIN["plugin-engine"]
     STARTER["starter"]
+    SPRINGAI["spring-ai"]
     CLI["cli"]
     EXAMPLES["examples"]
 
@@ -137,6 +141,8 @@ flowchart LR
     STARTER --> MULTI
     STARTER --> TOOLKIT
     STARTER --> PLUGIN
+    SPRINGAI --> LLM
+    SPRINGAI --> MEMORY
     CLI --> RUNTIME
     CLI --> LLM
     CLI --> SKILL
@@ -181,6 +187,7 @@ flowchart TB
     MULTI["Multi-Agent Runtime"]
     PERSONAL["Personal Agent 和 Team Runtime"]
     PLUGIN["Plugin Engine"]
+    SPRINGAI["Spring AI Adapter"]
 
     SKILL --> RUNTIME
     TASK --> RUNTIME
@@ -190,6 +197,8 @@ flowchart TB
     PLUGIN --> SKILL
     PLUGIN --> TASK
     PLUGIN --> MULTI
+    SPRINGAI --> LLM
+    SPRINGAI --> CONTEXT
 ```
 
 ## 快速开始
@@ -429,6 +438,12 @@ openharness:
     enabled: true
     max-messages: 20
     summarize-overflow: true
+    retrieval:
+      enabled: true
+      namespace: openharness
+      top-k: 5
+      similarity-threshold: 0.0
+      index-completed-messages: false
     context-files:
       enabled: true
       base-directory: .
@@ -464,6 +479,56 @@ openharness:
         model: llama3.1
 ```
 
+## Spring AI 集成
+
+如果 Spring Boot 应用已经通过 `spring.ai.*` 配置和 Spring AI provider starter 管理模型、API Key、向量库地址，可以引入 `openharness-spring-ai`。
+
+```xml
+<dependency>
+    <groupId>io.openharness4j</groupId>
+    <artifactId>openharness-spring-ai</artifactId>
+    <version>1.5.0-SNAPSHOT</version>
+</dependency>
+```
+
+适配模块会贡献：
+
+| Spring AI Bean | OpenHarness4j Bean | 行为 |
+| --- | --- | --- |
+| `ChatModel` | 作为 `LLMAdapter` 的 `SpringAiModelDriver` | 把 Spring AI Chat 响应转换为 `LLMResponse`，工具执行仍由 OpenHarness 控制。 |
+| `VectorStore` | 作为 `MemoryRetriever` 的 `SpringAiVectorStore` | 为 `RetrievalAugmentedContextManager` 提供 RAG 和语义记忆检索。 |
+
+工具执行仍由 OpenHarness4j 控制。`SpringAiModelDriver` 会把 Spring AI Tool Calling 设置为用户控制模式，因此 `ToolRegistry`、权限检查、审计、重试和 Trace 仍走 OpenHarness4j 的治理链路。
+
+应用配置示例：
+
+```yaml
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: gpt-4.1-mini
+    vectorstore:
+      redis:
+        uri: redis://localhost:6379
+
+openharness:
+  spring-ai:
+    model:
+      enabled: true
+    vector:
+      enabled: true
+      namespace: openharness
+  memory:
+    retrieval:
+      enabled: true
+      top-k: 5
+      similarity-threshold: 0.0
+      index-completed-messages: true
+```
+
 ## CLI
 
 Prompt 模式：
@@ -496,6 +561,12 @@ mvn -q -pl cli -am exec:java -Dexec.args="--dry-run --mock-response ready --enab
 
 ```bash
 mvn test
+```
+
+只运行 Spring AI 适配层测试：
+
+```bash
+mvn -pl spring-ai -am test
 ```
 
 运行 v1.5 功能验证示例：

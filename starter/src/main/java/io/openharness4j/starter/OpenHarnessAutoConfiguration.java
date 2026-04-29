@@ -13,6 +13,8 @@ import io.openharness4j.memory.MemorySessionManager;
 import io.openharness4j.memory.MemoryStore;
 import io.openharness4j.memory.MemorySummarizer;
 import io.openharness4j.memory.MemoryWindowPolicy;
+import io.openharness4j.memory.MemoryRetriever;
+import io.openharness4j.memory.RetrievalAugmentedContextManager;
 import io.openharness4j.memory.SimpleMemorySummarizer;
 import io.openharness4j.multiagent.ConflictResolver;
 import io.openharness4j.multiagent.DefaultMultiAgentAggregator;
@@ -248,7 +250,8 @@ public class OpenHarnessAutoConfiguration {
     public ContextManager contextManager(
             OpenHarnessProperties properties,
             ObjectProvider<MemoryStore> memoryStore,
-            ObjectProvider<MemorySummarizer> memorySummarizer
+            ObjectProvider<MemorySummarizer> memorySummarizer,
+            ObjectProvider<MemoryRetriever> memoryRetriever
     ) {
         ContextManager delegate;
         MemoryStore store = memoryStore.getIfAvailable();
@@ -267,10 +270,10 @@ public class OpenHarnessAutoConfiguration {
             );
         }
         if (!memory.getContextFiles().isEnabled()) {
-            return delegate;
+            return retrievalAugmentedContextManager(delegate, properties, memoryRetriever);
         }
         OpenHarnessProperties.Memory.ContextFiles contextFiles = memory.getContextFiles();
-        return new ContextFileContextManager(
+        ContextManager contextFileDelegate = new ContextFileContextManager(
                 delegate,
                 Path.of(contextFiles.getBaseDirectory()),
                 contextFiles.isLoadClaude(),
@@ -278,6 +281,7 @@ public class OpenHarnessAutoConfiguration {
                 contextFiles.isPersistMemory(),
                 summarizer
         );
+        return retrievalAugmentedContextManager(contextFileDelegate, properties, memoryRetriever);
     }
 
     @Bean
@@ -483,6 +487,26 @@ public class OpenHarnessAutoConfiguration {
                 RetryPolicy.fixedDelay(agent.getLlmRetryMaxAttempts(), agent.getLlmRetryBackoffMillis()),
                 RetryPolicy.fixedDelay(agent.getToolRetryMaxAttempts(), agent.getToolRetryBackoffMillis()),
                 costEstimator
+        );
+    }
+
+    private static ContextManager retrievalAugmentedContextManager(
+            ContextManager delegate,
+            OpenHarnessProperties properties,
+            ObjectProvider<MemoryRetriever> memoryRetriever
+    ) {
+        OpenHarnessProperties.Memory.Retrieval retrieval = properties.getMemory().getRetrieval();
+        MemoryRetriever retriever = memoryRetriever.getIfAvailable();
+        if (!retrieval.isEnabled() || retriever == null) {
+            return delegate;
+        }
+        return new RetrievalAugmentedContextManager(
+                delegate,
+                retriever,
+                retrieval.getNamespace(),
+                retrieval.getTopK(),
+                retrieval.getSimilarityThreshold(),
+                retrieval.isIndexCompletedMessages()
         );
     }
 

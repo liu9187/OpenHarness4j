@@ -1,5 +1,6 @@
 package io.openharness4j.starter;
 
+import io.openharness4j.memory.MemoryRetrievalRequest;
 import io.openharness4j.runtime.AgentRuntimeConfig;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -117,6 +118,7 @@ public class OpenHarnessProperties {
         private int maxMessages = 20;
         private boolean summarizeOverflow = true;
         private final ContextFiles contextFiles = new ContextFiles();
+        private final Retrieval retrieval = new Retrieval();
 
         public boolean isEnabled() {
             return enabled;
@@ -144,6 +146,10 @@ public class OpenHarnessProperties {
 
         public ContextFiles getContextFiles() {
             return contextFiles;
+        }
+
+        public Retrieval getRetrieval() {
+            return retrieval;
         }
 
         public static class ContextFiles {
@@ -191,6 +197,60 @@ public class OpenHarnessProperties {
 
             public void setPersistMemory(boolean persistMemory) {
                 this.persistMemory = persistMemory;
+            }
+        }
+
+        public static class Retrieval {
+            private boolean enabled = false;
+            private String namespace = MemoryRetrievalRequest.DEFAULT_NAMESPACE;
+            private int topK = MemoryRetrievalRequest.DEFAULT_TOP_K;
+            private double similarityThreshold = MemoryRetrievalRequest.DEFAULT_SIMILARITY_THRESHOLD;
+            private boolean indexCompletedMessages = false;
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public String getNamespace() {
+                return namespace;
+            }
+
+            public void setNamespace(String namespace) {
+                this.namespace = namespace == null || namespace.isBlank()
+                        ? MemoryRetrievalRequest.DEFAULT_NAMESPACE
+                        : namespace;
+            }
+
+            public int getTopK() {
+                return topK;
+            }
+
+            public void setTopK(int topK) {
+                this.topK = topK <= 0 ? MemoryRetrievalRequest.DEFAULT_TOP_K : topK;
+            }
+
+            public double getSimilarityThreshold() {
+                return similarityThreshold;
+            }
+
+            public void setSimilarityThreshold(double similarityThreshold) {
+                if (similarityThreshold < 0.0 || similarityThreshold > 1.0) {
+                    this.similarityThreshold = MemoryRetrievalRequest.DEFAULT_SIMILARITY_THRESHOLD;
+                    return;
+                }
+                this.similarityThreshold = similarityThreshold;
+            }
+
+            public boolean isIndexCompletedMessages() {
+                return indexCompletedMessages;
+            }
+
+            public void setIndexCompletedMessages(boolean indexCompletedMessages) {
+                this.indexCompletedMessages = indexCompletedMessages;
             }
         }
     }
