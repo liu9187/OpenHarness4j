@@ -7,7 +7,7 @@ public class FeatureVerificationExample {
     public static void main(String[] args) {
         List<VerificationResult> results = OpenHarnessFeatureVerifier.runAll();
 
-        System.out.println("OpenHarness4j v0.2 feature verification");
+        System.out.println("OpenHarness4j v1.5 feature verification");
         System.out.println("========================================");
         for (VerificationResult result : results) {
             System.out.printf(

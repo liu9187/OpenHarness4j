@@ -6,4 +6,8 @@ import io.openharness4j.api.AgentResponse;
 public interface AgentRuntime {
 
     AgentResponse run(AgentRequest request);
+
+    default AgentResponse run(AgentRequest request, AgentEventSink eventSink) {
+        return run(request);
+    }
 }

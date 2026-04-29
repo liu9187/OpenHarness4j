@@ -13,7 +13,7 @@ class OpenHarnessFeatureVerifierTest {
     void verifiesAllExampleScenarios() {
         List<VerificationResult> results = OpenHarnessFeatureVerifier.runAll();
 
-        assertEquals(11, results.size());
+        assertEquals(19, results.size());
         assertFalse(results.stream().anyMatch(result -> result.traceId().isBlank()));
     }
 }

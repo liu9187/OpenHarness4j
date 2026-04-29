@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.openharness4j</groupId>
         <artifactId>openharness4j</artifactId>
-        <version>0.2.0-SNAPSHOT</version>
+        <version>1.5.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>openharness-observability</artifactId>
@@ -18,6 +18,12 @@
             <groupId>io.openharness4j</groupId>
             <artifactId>openharness-api</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 </project>

@@ -7,7 +7,7 @@
     <parent>
         <groupId>io.openharness4j</groupId>
         <artifactId>openharness4j</artifactId>
-        <version>0.2.0-SNAPSHOT</version>
+        <version>1.5.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>openharness-tool-engine</artifactId>

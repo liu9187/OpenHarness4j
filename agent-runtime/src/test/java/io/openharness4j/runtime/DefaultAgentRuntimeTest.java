@@ -18,12 +18,16 @@ import io.openharness4j.llm.MockLLMAdapter;
 import io.openharness4j.observability.DefaultAgentTracer;
 import io.openharness4j.permission.AllowAllPermissionChecker;
 import io.openharness4j.permission.PermissionChecker;
+import io.openharness4j.permission.PreToolUseResult;
+import io.openharness4j.permission.ToolExecutionHook;
 import io.openharness4j.tool.InMemoryToolRegistry;
 import io.openharness4j.tool.Tool;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -292,6 +296,220 @@ class DefaultAgentRuntimeTest {
     }
 
     @Test
+    void emitsStreamingEventsAndTracksEstimatedCost() {
+        List<AgentEvent> events = new CopyOnWriteArrayList<>();
+        LLMAdapter llmAdapter = new MockLLMAdapter(List.of(new LLMResponse(
+                Message.assistant("priced answer"),
+                List.of(),
+                new Usage(1_000_000, 500_000, 1_500_000)
+        )));
+        AgentRuntime runtime = runtime(
+                llmAdapter,
+                new InMemoryToolRegistry(),
+                AgentRuntimeConfig.defaults().withCostEstimator(new TokenPricingCostEstimator(
+                        "USD",
+                        new BigDecimal("1.00"),
+                        new BigDecimal("2.00")
+                ))
+        );
+
+        AgentResponse response = runtime.run(AgentRequest.of("s1", "u1", "price this"), events::add);
+
+        assertEquals(FinishReason.STOP, response.finishReason());
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.STARTED));
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.LLM_ATTEMPT));
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.LLM_RESPONSE));
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.TEXT_DELTA));
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.DONE));
+        AgentEvent costEvent = events.stream()
+                .filter(event -> event.type() == AgentEventType.COST_UPDATED)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("USD", costEvent.cost().currency());
+        assertEquals(0, new BigDecimal("2.00").compareTo(costEvent.cost().amount()));
+    }
+
+    @Test
+    void retriesLlmCallsWhenPolicyAllows() {
+        AtomicInteger attempts = new AtomicInteger();
+        List<AgentEvent> events = new CopyOnWriteArrayList<>();
+        LLMAdapter llmAdapter = (messages, tools) -> {
+            if (attempts.incrementAndGet() == 1) {
+                throw new IllegalStateException("temporary outage");
+            }
+            return LLMResponse.text("recovered");
+        };
+        AgentRuntime runtime = runtime(
+                llmAdapter,
+                new InMemoryToolRegistry(),
+                AgentRuntimeConfig.defaults().withLlmRetryPolicy(RetryPolicy.fixedDelay(2, 0))
+        );
+
+        AgentResponse response = runtime.run(AgentRequest.of("s1", "u1", "retry llm"), events::add);
+
+        assertEquals(FinishReason.STOP, response.finishReason());
+        assertEquals("recovered", response.content());
+        assertEquals(2, attempts.get());
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.LLM_RETRY));
+    }
+
+    @Test
+    void retriesToolExecutionWhenPolicyAllows() {
+        AtomicInteger attempts = new AtomicInteger();
+        InMemoryToolRegistry registry = new InMemoryToolRegistry();
+        registry.register(new Tool() {
+            @Override
+            public String name() {
+                return "flaky";
+            }
+
+            @Override
+            public String description() {
+                return "fails once";
+            }
+
+            @Override
+            public ToolResult execute(ToolContext context) {
+                if (attempts.incrementAndGet() == 1) {
+                    throw new IllegalStateException("temporary tool failure");
+                }
+                return ToolResult.success("ok");
+            }
+        });
+        LLMAdapter llmAdapter = new MockLLMAdapter(List.of(
+                LLMResponse.toolCalls("calling flaky", List.of(new ToolCall("c1", "flaky", Map.of()))),
+                LLMResponse.text("tool recovered")
+        ));
+        List<AgentEvent> events = new CopyOnWriteArrayList<>();
+        AgentRuntime runtime = runtime(
+                llmAdapter,
+                registry,
+                AgentRuntimeConfig.defaults().withToolRetryPolicy(RetryPolicy.fixedDelay(2, 0))
+        );
+
+        AgentResponse response = runtime.run(AgentRequest.of("s1", "u1", "retry tool"), events::add);
+
+        assertEquals(FinishReason.STOP, response.finishReason());
+        assertEquals(2, attempts.get());
+        assertEquals(ToolResultStatus.SUCCESS, response.toolCalls().get(0).status());
+        assertTrue(events.stream().anyMatch(event -> event.type() == AgentEventType.TOOL_RETRY));
+    }
+
+    @Test
+    void executesIndependentToolCallsInParallelWhenEnabled() {
+        AtomicInteger active = new AtomicInteger();
+        AtomicInteger maxActive = new AtomicInteger();
+        InMemoryToolRegistry registry = new InMemoryToolRegistry();
+        registry.register(new SlowTool("first", active, maxActive));
+        registry.register(new SlowTool("second", active, maxActive));
+        LLMAdapter llmAdapter = new MockLLMAdapter(List.of(
+                LLMResponse.toolCalls(
+                        "calling slow tools",
+                        List.of(
+                                new ToolCall("c1", "first", Map.of()),
+                                new ToolCall("c2", "second", Map.of())
+                        )
+                ),
+                LLMResponse.text("parallel done")
+        ));
+        AgentRuntime runtime = runtime(
+                llmAdapter,
+                registry,
+                AgentRuntimeConfig.defaults().withParallelToolExecution(true)
+        );
+
+        AgentResponse response = runtime.run(AgentRequest.of("s1", "u1", "run in parallel"));
+
+        assertEquals(FinishReason.STOP, response.finishReason());
+        assertTrue(maxActive.get() > 1);
+        assertEquals("first", response.toolCalls().get(0).toolName());
+        assertEquals("second", response.toolCalls().get(1).toolName());
+    }
+
+    @Test
+    void preToolHookCanRewriteToolCallBeforeExecution() {
+        InMemoryToolRegistry registry = new InMemoryToolRegistry();
+        registry.register(new EchoTool());
+        LLMAdapter llmAdapter = new MockLLMAdapter(List.of(
+                LLMResponse.toolCalls("calling echo", List.of(new ToolCall("c1", "echo", Map.of("text", "original")))),
+                LLMResponse.text("done")
+        ));
+        ToolExecutionHook hook = new ToolExecutionHook() {
+            @Override
+            public PreToolUseResult beforeToolUse(ToolCall call, io.openharness4j.api.AgentContext context) {
+                return PreToolUseResult.allow(new ToolCall(call.id(), call.name(), Map.of("text", "rewritten")));
+            }
+        };
+        AgentRuntime runtime = new DefaultAgentRuntime(
+                llmAdapter,
+                registry,
+                new AllowAllPermissionChecker(),
+                new DefaultAgentTracer(),
+                new DefaultContextManager(),
+                AgentRuntimeConfig.defaults(),
+                hook
+        );
+
+        AgentResponse response = runtime.run(AgentRequest.of("s1", "u1", "rewrite tool"));
+
+        assertEquals(FinishReason.STOP, response.finishReason());
+        assertEquals("rewritten", response.toolCalls().get(0).args().get("text"));
+    }
+
+    @Test
+    void preToolHookCanDenyAndPostHookObservesResult() {
+        AtomicReference<ToolResult> observed = new AtomicReference<>();
+        AtomicBoolean executed = new AtomicBoolean(false);
+        InMemoryToolRegistry registry = new InMemoryToolRegistry();
+        registry.register(new Tool() {
+            @Override
+            public String name() {
+                return "danger";
+            }
+
+            @Override
+            public String description() {
+                return "should not execute";
+            }
+
+            @Override
+            public ToolResult execute(ToolContext context) {
+                executed.set(true);
+                return ToolResult.success("bad");
+            }
+        });
+        ToolExecutionHook hook = new ToolExecutionHook() {
+            @Override
+            public PreToolUseResult beforeToolUse(ToolCall call, io.openharness4j.api.AgentContext context) {
+                return PreToolUseResult.deny("blocked by pre hook", RiskLevel.HIGH);
+            }
+
+            @Override
+            public void afterToolUse(ToolCall call, ToolResult result, io.openharness4j.api.AgentContext context, long durationMillis) {
+                observed.set(result);
+            }
+        };
+        AgentRuntime runtime = new DefaultAgentRuntime(
+                new MockLLMAdapter(List.of(
+                        LLMResponse.toolCalls("calling danger", List.of(new ToolCall("c1", "danger", Map.of()))),
+                        LLMResponse.text("denied")
+                )),
+                registry,
+                new AllowAllPermissionChecker(),
+                new DefaultAgentTracer(),
+                new DefaultContextManager(),
+                AgentRuntimeConfig.defaults(),
+                hook
+        );
+
+        AgentResponse response = runtime.run(AgentRequest.of("s1", "u1", "deny tool"));
+
+        assertFalse(executed.get());
+        assertEquals(ToolResultStatus.PERMISSION_DENIED, response.toolCalls().get(0).status());
+        assertEquals(ToolResultStatus.PERMISSION_DENIED, observed.get().status());
+    }
+
+    @Test
     void usesProvidedTraceIdWhenPresentInMetadata() {
         AgentRuntime runtime = runtime(new MockLLMAdapter(List.of(LLMResponse.text("ok"))), new InMemoryToolRegistry());
 
@@ -324,13 +542,17 @@ class DefaultAgentRuntimeTest {
     }
 
     private static AgentRuntime runtime(LLMAdapter adapter, InMemoryToolRegistry registry) {
+        return runtime(adapter, registry, AgentRuntimeConfig.defaults());
+    }
+
+    private static AgentRuntime runtime(LLMAdapter adapter, InMemoryToolRegistry registry, AgentRuntimeConfig config) {
         return new DefaultAgentRuntime(
                 adapter,
                 registry,
                 new AllowAllPermissionChecker(),
                 new DefaultAgentTracer(),
                 new DefaultContextManager(),
-                AgentRuntimeConfig.defaults()
+                config
         );
     }
 
@@ -402,6 +624,28 @@ class DefaultAgentRuntimeTest {
         @Override
         public ToolResult execute(ToolContext context) {
             events.add("tool:" + name);
+            return ToolResult.success(name + " ok");
+        }
+    }
+
+    private record SlowTool(String name, AtomicInteger active, AtomicInteger maxActive) implements Tool {
+        @Override
+        public String description() {
+            return "slow tool";
+        }
+
+        @Override
+        public ToolResult execute(ToolContext context) {
+            int current = active.incrementAndGet();
+            maxActive.accumulateAndGet(current, Math::max);
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return ToolResult.failed("INTERRUPTED", "slow tool interrupted");
+            } finally {
+                active.decrementAndGet();
+            }
             return ToolResult.success(name + " ok");
         }
     }

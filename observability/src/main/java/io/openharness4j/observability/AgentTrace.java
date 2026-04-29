@@ -1,5 +1,6 @@
 package io.openharness4j.observability;
 
+import io.openharness4j.api.Cost;
 import io.openharness4j.api.PermissionDecision;
 import io.openharness4j.api.ToolCall;
 import io.openharness4j.api.ToolCallRecord;
@@ -9,7 +10,9 @@ import io.openharness4j.api.Usage;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AgentTrace {
 
@@ -18,6 +21,7 @@ public class AgentTrace {
     private final List<ToolCallRecord> toolCalls = new ArrayList<>();
     private final List<String> errors = new ArrayList<>();
     private Usage usage = Usage.zero();
+    private Cost cost = Cost.zero();
 
     public AgentTrace(String traceId) {
         if (traceId == null || traceId.isBlank()) {
@@ -39,6 +43,10 @@ public class AgentTrace {
         return usage;
     }
 
+    public Cost cost() {
+        return cost;
+    }
+
     public List<ToolCallRecord> toolCalls() {
         return List.copyOf(toolCalls);
     }
@@ -51,11 +59,15 @@ public class AgentTrace {
         this.usage = this.usage.plus(usage);
     }
 
+    public void recordCost(Cost cost) {
+        this.cost = cost == null ? Cost.zero() : cost;
+    }
+
     public void recordToolResult(ToolCall call, ToolResult result, long durationMillis) {
         toolCalls.add(new ToolCallRecord(
                 call.id(),
                 call.name(),
-                call.args(),
+                sanitizeArgs(call.args()),
                 result.status(),
                 result.status() != ToolResultStatus.PERMISSION_DENIED,
                 durationMillis,
@@ -69,7 +81,7 @@ public class AgentTrace {
         toolCalls.add(new ToolCallRecord(
                 call.id(),
                 call.name(),
-                call.args(),
+                sanitizeArgs(call.args()),
                 result.status(),
                 false,
                 durationMillis,
@@ -87,5 +99,33 @@ public class AgentTrace {
         if (error != null && !error.isBlank()) {
             errors.add(error);
         }
+    }
+
+    private static Map<String, Object> sanitizeArgs(Map<String, Object> args) {
+        if (args == null || args.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : args.entrySet()) {
+            if (sensitive(entry.getKey())) {
+                sanitized.put(entry.getKey(), "***");
+            } else {
+                sanitized.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return sanitized;
+    }
+
+    private static boolean sensitive(String key) {
+        if (key == null) {
+            return false;
+        }
+        String normalized = key.toLowerCase();
+        return normalized.contains("password")
+                || normalized.contains("secret")
+                || normalized.contains("token")
+                || normalized.contains("apikey")
+                || normalized.contains("api_key")
+                || normalized.contains("authorization");
     }
 }
