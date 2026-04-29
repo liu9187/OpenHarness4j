@@ -1,86 +1,86 @@
 # OpenHarness4j
 
-**Language:** English | [简体中文](README.cn.md)
+**语言:** [English](README.md) | 简体中文
 
-OpenHarness4j is a Java Agent Harness runtime for building controlled, observable, tool-calling agents that can be embedded in business systems.
+OpenHarness4j 是一个面向 Java 的 Agent Harness 运行时，用于构建可控、可观测、可调用工具的智能体，并可以嵌入到业务系统中。
 
-It provides the reusable runtime pieces that Java applications usually need when turning an LLM from "text generation" into "controlled execution": an agent loop, LLM adapters, tool registration, permission checks, memory, skills, async tasks, multi-agent orchestration, personal/team agents, plugins, CLI verification, and Spring Boot auto-configuration.
+它提供了 Java 应用把 LLM 从“生成文本”升级为“可控执行”时通常需要的基础能力：Agent Loop、LLM 适配器、工具注册、权限检查、记忆、技能、异步任务、多智能体编排、个人/团队智能体、插件、CLI 验证和 Spring Boot 自动配置。
 
-## Status
+## 当前状态
 
-Current version: `1.5.0-SNAPSHOT`
+当前版本：`1.5.0-SNAPSHOT`
 
-The current line includes:
+当前版本包含：
 
-| Capability | Status |
+| 能力 | 状态 |
 | --- | --- |
-| Embeddable Java `AgentRuntime` | Available |
-| Mock, fallback, and OpenAI-compatible LLM adapters | Available |
-| Tool registry and structured tool execution | Available |
-| Governed File, Shell, Web Fetch, Search, and MCP Client tools | Available |
-| Path, command, tool, and approval governance | Available |
-| Runtime events, retry policies, parallel tools, and cost tracking | Available |
-| Memory stores, session management, and context files | Available |
-| YAML and Markdown skills | Available |
-| Async task engine | Available |
-| Multi-agent planning, execution, aggregation, and conflict detection | Available |
-| Personal agent channels and long-lived team runtime | Available |
-| Plugin descriptors, activation lifecycle, and contribution context | Available |
-| Provider profiles and fallback adapter selection | Available |
-| CLI prompt, interactive, JSON, stream-json, and dry-run checks | Available |
-| Spring Boot auto-configuration | Available |
+| 可嵌入的 Java `AgentRuntime` | 已提供 |
+| Mock、Fallback 和 OpenAI-compatible LLM 适配器 | 已提供 |
+| 工具注册表与结构化工具执行 | 已提供 |
+| 受治理的 File、Shell、Web Fetch、Search、MCP Client 工具 | 已提供 |
+| 路径、命令、工具和审批治理 | 已提供 |
+| Runtime 事件、重试策略、并行工具和成本追踪 | 已提供 |
+| Memory Store、会话管理和上下文文件 | 已提供 |
+| YAML 和 Markdown Skills | 已提供 |
+| 异步任务引擎 | 已提供 |
+| 多智能体规划、执行、聚合和冲突检测 | 已提供 |
+| 个人智能体通道和长期团队运行时 | 已提供 |
+| 插件描述符、激活生命周期和贡献上下文 | 已提供 |
+| Provider Profile 与 Fallback 适配器选择 | 已提供 |
+| CLI prompt、interactive、JSON、stream-json 和 dry-run 检查 | 已提供 |
+| Spring Boot 自动配置 | 已提供 |
 
-See [docs/usage.md](docs/usage.md), [docs/cli.md](docs/cli.md), [docs/openharness-comparison.md](docs/openharness-comparison.md), and [产品文档.md](产品文档.md) for deeper product and usage notes.
+更多产品和使用说明见 [docs/usage.md](docs/usage.md)、[docs/cli.md](docs/cli.md)、[docs/openharness-comparison.md](docs/openharness-comparison.md) 和 [产品文档.md](产品文档.md)。
 
-## Project Structure
+## 工程结构
 
 ```text
 OpenHarness4j
-├── api                 # Shared public contracts and records
-├── llm-adapter         # LLM adapters, provider profiles, fallback selection
-├── tool-engine         # Tool interface and registry
-├── toolkit-engine      # Standard governed tools
-├── permission-engine   # Permission policies, approval hooks, audit events
-├── observability       # Agent traces and observation exporters
-├── agent-runtime       # Default agent loop and runtime configuration
-├── memory-engine       # Cross-request memory, stores, context files
-├── skill-engine        # Java/YAML/Markdown skills and executor
-├── task-engine         # In-process async task execution
-├── multi-agent         # Planning and sub-agent orchestration
-├── personal-agent      # Channel-facing personal agents and team runtime
-├── plugin-engine       # Plugin descriptors and contribution lifecycle
-├── starter             # Spring Boot auto-configuration
-├── cli                 # Local command-line entry point
-├── examples            # Runnable examples and feature verification
-├── docs                # Extended English and Chinese guides
-├── 产品文档.md          # Product requirements and roadmap context
-└── pom.xml             # Maven multi-module parent
+├── api                 # 共享公开契约和 record
+├── llm-adapter         # LLM 适配器、Provider Profile、Fallback 选择
+├── tool-engine         # Tool 接口和工具注册表
+├── toolkit-engine      # 标准受治理工具
+├── permission-engine   # 权限策略、审批 Hook、审计事件
+├── observability       # Agent Trace 和观测导出
+├── agent-runtime       # 默认 Agent Loop 和运行时配置
+├── memory-engine       # 跨请求记忆、存储、上下文文件
+├── skill-engine        # Java/YAML/Markdown Skill 和执行器
+├── task-engine         # 进程内异步任务执行
+├── multi-agent         # 规划和子智能体编排
+├── personal-agent      # 面向通道的个人智能体和团队运行时
+├── plugin-engine       # 插件描述符和贡献生命周期
+├── starter             # Spring Boot 自动配置
+├── cli                 # 本地命令行入口
+├── examples            # 可运行示例和功能验证
+├── docs                # 扩展英文和中文指南
+├── 产品文档.md          # 产品需求和路线图上下文
+└── pom.xml             # Maven 多模块父工程
 ```
 
-## Module Usage
+## 模块使用说明
 
-| Module directory | Maven artifact | Use when | Main entry points | Required? |
+| 模块目录 | Maven artifact | 适用场景 | 主要入口 | 是否必需 |
 | --- | --- | --- | --- | --- |
-| `api` | `openharness-api` | You need shared request, response, message, tool, usage, and cost contracts. | `AgentRequest`, `AgentResponse`, `Message`, `ToolDefinition`, `ToolCall`, `ToolResult` | Foundation |
-| `llm-adapter` | `openharness-llm-adapter` | You need to connect the runtime to model providers or tests. | `LLMAdapter`, `OpenAICompatibleLLMAdapter`, `MockLLMAdapter`, `FallbackLLMAdapter`, `LLMProviderProfile` | Core |
-| `tool-engine` | `openharness-tool-engine` | You need to register business tools. | `Tool`, `ToolRegistry`, `InMemoryToolRegistry` | Core |
-| `permission-engine` | `openharness-permission-engine` | You need tool execution governance and audit. | `PermissionChecker`, `PermissionPolicy`, `PolicyPermissionChecker`, `ToolExecutionHook`, `ApprovalRequiredToolHook` | Core |
-| `observability` | `openharness-observability` | You need runtime traces and observation export. | `AgentTracer`, `DefaultAgentTracer`, `ExportingAgentTracer`, `ObservationExporter` | Core |
-| `agent-runtime` | `openharness-agent-runtime` | You need the embeddable agent loop. | `AgentRuntime`, `DefaultAgentRuntime`, `AgentRuntimeConfig`, `RetryPolicy`, `TokenPricingCostEstimator` | Core |
-| `toolkit-engine` | `openharness-toolkit-engine` | You want built-in governed tools. | `StandardToolkit`, `FileTool`, `ShellTool`, `WebFetchTool`, `SearchTool`, `McpClientTool` | Optional |
-| `memory-engine` | `openharness-memory-engine` | You need cross-request history, memory stores, or context files. | `MemoryContextManager`, `MemorySessionManager`, `MemoryStore`, `ContextFileContextManager` | Optional |
-| `skill-engine` | `openharness-skill-engine` | You need prompt and workflow skills loaded from Java, YAML, or Markdown. | `SkillDefinition`, `SkillExecutor`, `DefaultSkillExecutor`, `YamlSkillLoader`, `MarkdownSkillLoader` | Optional |
-| `task-engine` | `openharness-task-engine` | You need async task submission, status, cancellation, and timeout. | `TaskEngine`, `InMemoryTaskEngine`, `TaskHandler`, `TaskRequest` | Optional |
-| `multi-agent` | `openharness-multi-agent` | You need planning plus sub-agent execution and aggregation. | `MultiAgentRuntime`, `DefaultMultiAgentRuntime`, `PlanningAgent`, `SubAgentRegistry` | Optional |
-| `personal-agent` | `openharness-personal-agent` | You need channel-facing assistants or long-lived team agents. | `DefaultPersonalAgentService`, `PersonalAgentChannelAdapter`, `InMemoryTeamRuntime` | Optional |
-| `plugin-engine` | `openharness-plugin-engine` | You need plugins to contribute tools, skills, tasks, or sub-agents. | `OpenHarnessPlugin`, `PluginDescriptor`, `PluginManager`, `PluginContext` | Optional |
-| `starter` | `openharness-spring-boot-starter` | You want Spring Boot beans and configuration properties. | `OpenHarnessAutoConfiguration`, `OpenHarnessProperties` | Optional |
-| `cli` | `openharness-cli` | You want local prompt, interactive, JSON, stream-json, or dry-run checks. | `OpenHarnessCli`, `CliOptions`, `CliDryRun` | Optional |
-| `examples` | `openharness-examples` | You want runnable examples and release verification. | `SimpleAgentExample`, `FeatureVerificationExample`, `OpenHarnessFeatureVerifier` | Development |
+| `api` | `openharness-api` | 需要共享请求、响应、消息、工具、用量和成本契约。 | `AgentRequest`、`AgentResponse`、`Message`、`ToolDefinition`、`ToolCall`、`ToolResult` | 基础 |
+| `llm-adapter` | `openharness-llm-adapter` | 需要把 Runtime 接到模型供应商或测试实现。 | `LLMAdapter`、`OpenAICompatibleLLMAdapter`、`MockLLMAdapter`、`FallbackLLMAdapter`、`LLMProviderProfile` | 核心 |
+| `tool-engine` | `openharness-tool-engine` | 需要注册业务工具。 | `Tool`、`ToolRegistry`、`InMemoryToolRegistry` | 核心 |
+| `permission-engine` | `openharness-permission-engine` | 需要工具执行治理和审计。 | `PermissionChecker`、`PermissionPolicy`、`PolicyPermissionChecker`、`ToolExecutionHook`、`ApprovalRequiredToolHook` | 核心 |
+| `observability` | `openharness-observability` | 需要运行时 Trace 和观测导出。 | `AgentTracer`、`DefaultAgentTracer`、`ExportingAgentTracer`、`ObservationExporter` | 核心 |
+| `agent-runtime` | `openharness-agent-runtime` | 需要可嵌入的 Agent Loop。 | `AgentRuntime`、`DefaultAgentRuntime`、`AgentRuntimeConfig`、`RetryPolicy`、`TokenPricingCostEstimator` | 核心 |
+| `toolkit-engine` | `openharness-toolkit-engine` | 需要内置的受治理工具。 | `StandardToolkit`、`FileTool`、`ShellTool`、`WebFetchTool`、`SearchTool`、`McpClientTool` | 可选 |
+| `memory-engine` | `openharness-memory-engine` | 需要跨请求历史、记忆存储或上下文文件。 | `MemoryContextManager`、`MemorySessionManager`、`MemoryStore`、`ContextFileContextManager` | 可选 |
+| `skill-engine` | `openharness-skill-engine` | 需要从 Java、YAML 或 Markdown 加载 Prompt/Workflow Skill。 | `SkillDefinition`、`SkillExecutor`、`DefaultSkillExecutor`、`YamlSkillLoader`、`MarkdownSkillLoader` | 可选 |
+| `task-engine` | `openharness-task-engine` | 需要异步任务提交、状态查询、取消和超时。 | `TaskEngine`、`InMemoryTaskEngine`、`TaskHandler`、`TaskRequest` | 可选 |
+| `multi-agent` | `openharness-multi-agent` | 需要规划、子智能体执行和结果聚合。 | `MultiAgentRuntime`、`DefaultMultiAgentRuntime`、`PlanningAgent`、`SubAgentRegistry` | 可选 |
+| `personal-agent` | `openharness-personal-agent` | 需要面向 IM/通道的助手或长期团队智能体。 | `DefaultPersonalAgentService`、`PersonalAgentChannelAdapter`、`InMemoryTeamRuntime` | 可选 |
+| `plugin-engine` | `openharness-plugin-engine` | 需要插件贡献工具、技能、任务或子智能体。 | `OpenHarnessPlugin`、`PluginDescriptor`、`PluginManager`、`PluginContext` | 可选 |
+| `starter` | `openharness-spring-boot-starter` | 需要 Spring Boot Bean 和配置属性。 | `OpenHarnessAutoConfiguration`、`OpenHarnessProperties` | 可选 |
+| `cli` | `openharness-cli` | 需要本地 prompt、interactive、JSON、stream-json 或 dry-run 检查。 | `OpenHarnessCli`、`CliOptions`、`CliDryRun` | 可选 |
+| `examples` | `openharness-examples` | 需要可运行示例和发布验证。 | `SimpleAgentExample`、`FeatureVerificationExample`、`OpenHarnessFeatureVerifier` | 开发 |
 
-## Module Relationship Diagram
+## 模块关系图
 
-Arrows point from a module to its direct Maven dependencies.
+箭头从模块指向它的直接 Maven 依赖。
 
 ```mermaid
 flowchart LR
@@ -151,18 +151,18 @@ flowchart LR
     EXAMPLES --> PLUGIN
 ```
 
-## Runtime Flow
+## 运行链路图
 
 ```mermaid
 flowchart TB
-    USER["User or business system"]
-    ENTRY["Plain Java, Spring Boot, CLI, personal agent, or multi-agent entry"]
+    USER["用户或业务系统"]
+    ENTRY["Plain Java、Spring Boot、CLI、个人智能体或多智能体入口"]
     RUNTIME["AgentRuntime"]
-    CONTEXT["ContextManager and optional memory"]
+    CONTEXT["ContextManager 和可选 Memory"]
     LLM["LLMAdapter"]
-    TOOLS["ToolRegistry and Tool implementations"]
-    PERMISSION["PermissionChecker and ToolExecutionHook"]
-    OBS["AgentTracer and ObservationExporter"]
+    TOOLS["ToolRegistry 和 Tool 实现"]
+    PERMISSION["PermissionChecker 和 ToolExecutionHook"]
+    OBS["AgentTracer 和 ObservationExporter"]
     RESPONSE["AgentResponse"]
 
     USER --> ENTRY
@@ -179,7 +179,7 @@ flowchart TB
     SKILL["Skill Engine"]
     TASK["Task Engine"]
     MULTI["Multi-Agent Runtime"]
-    PERSONAL["Personal Agent and Team Runtime"]
+    PERSONAL["Personal Agent 和 Team Runtime"]
     PLUGIN["Plugin Engine"]
 
     SKILL --> RUNTIME
@@ -192,11 +192,11 @@ flowchart TB
     PLUGIN --> MULTI
 ```
 
-## Quick Start
+## 快速开始
 
 ### Plain Java Runtime
 
-Add the core runtime dependency:
+添加核心 Runtime 依赖：
 
 ```xml
 <dependency>
@@ -206,7 +206,7 @@ Add the core runtime dependency:
 </dependency>
 ```
 
-Create a runtime with an LLM adapter, tool registry, permission checker, tracer, and context manager:
+创建 Runtime 时需要 LLM 适配器、工具注册表、权限检查器、Tracer 和上下文管理器：
 
 ```java
 InMemoryToolRegistry tools = new InMemoryToolRegistry();
@@ -243,11 +243,11 @@ AgentResponse response = runtime.run(
 );
 ```
 
-Use `runtime.run(request, eventSink)` to consume runtime events such as LLM attempts, retries, text deltas, tool lifecycle events, cost updates, and completion.
+使用 `runtime.run(request, eventSink)` 可以消费 LLM 尝试、重试、文本增量、工具生命周期、成本更新和完成事件。
 
-### Standard Toolkit And Governance
+### 标准 Toolkit 与治理
 
-Add `openharness-toolkit-engine` when you want built-in File, Shell, Web Fetch, Search, or MCP Client tools.
+需要内置 File、Shell、Web Fetch、Search 或 MCP Client 工具时，引入 `openharness-toolkit-engine`。
 
 ```java
 Path workspace = Path.of("/srv/agent-workspace");
@@ -274,11 +274,11 @@ tools.register(new SearchTool(searchProvider));
 tools.register(new McpClientTool(mcpClient));
 ```
 
-For interactive governance, compose `ApprovalRequiredToolHook` into `DefaultAgentRuntime` or expose a `ToolExecutionHook` bean in Spring Boot.
+如果需要交互式治理，可以把 `ApprovalRequiredToolHook` 组合进 `DefaultAgentRuntime`，也可以在 Spring Boot 中暴露 `ToolExecutionHook` Bean。
 
-### Memory And Context Files
+### Memory 与上下文文件
 
-Use `openharness-memory-engine` for cross-request context and project memory.
+使用 `openharness-memory-engine` 支持跨请求上下文和项目记忆。
 
 ```java
 MemoryStore memoryStore = new InMemoryMemoryStore();
@@ -298,11 +298,11 @@ MemorySessionManager sessions = new MemorySessionManager(memoryStore);
 List<Message> history = sessions.resume("session-1");
 ```
 
-`ContextFileContextManager` can load `CLAUDE.md` as project instructions and `MEMORY.md` as persistent memory.
+`ContextFileContextManager` 可以把 `CLAUDE.md` 作为项目指令加载，把 `MEMORY.md` 作为持久记忆加载。
 
 ### Markdown Skills
 
-Use `openharness-skill-engine` for reusable prompt and workflow definitions.
+使用 `openharness-skill-engine` 维护可复用的 Prompt 和 Workflow 定义。
 
 ```markdown
 ---
@@ -320,9 +320,9 @@ InMemorySkillRegistry skills = new InMemorySkillRegistry();
 skills.register(skill);
 ```
 
-### Personal Agent And Team Runtime
+### Personal Agent 与 Team Runtime
 
-Use `openharness-personal-agent` for channel-facing assistants and long-lived team agents.
+使用 `openharness-personal-agent` 构建面向通道的助手和长期团队智能体。
 
 ```xml
 <dependency>
@@ -361,7 +361,7 @@ try (InMemoryTeamRuntime teamRuntime = new InMemoryTeamRuntime(teamRegistry)) {
 
 ## Spring Boot Starter
 
-Add the starter:
+添加 Starter：
 
 ```xml
 <dependency>
@@ -371,7 +371,7 @@ Add the starter:
 </dependency>
 ```
 
-Provide an `LLMAdapter` bean or enable provider profiles, then optionally register tools, skills, tasks, sub-agents, or plugins.
+提供一个 `LLMAdapter` Bean，或者启用 Provider Profile；随后可以按需注册工具、技能、任务、子智能体或插件。
 
 ```java
 @Bean
@@ -389,7 +389,7 @@ Tool echoTool() {
 }
 ```
 
-Example configuration:
+配置示例：
 
 ```yaml
 openharness:
@@ -466,52 +466,52 @@ openharness:
 
 ## CLI
 
-Prompt mode:
+Prompt 模式：
 
 ```bash
 mvn -q -pl cli -am exec:java -Dexec.args="-p hello --mock-response 'cli ok'"
 ```
 
-Stream JSON output:
+Stream JSON 输出：
 
 ```bash
 mvn -q -pl cli -am exec:java -Dexec.args="-p hello --mock-response 'stream ok' --output stream-json"
 ```
 
-Interactive mode:
+交互模式：
 
 ```bash
 mvn -q -pl cli -am exec:java -Dexec.args="--interactive --mock-response 'interactive ok'"
 ```
 
-Dry-run readiness checks:
+Dry-run 就绪检查：
 
 ```bash
 mvn -q -pl cli -am exec:java -Dexec.args="--dry-run --mock-response ready --enable-tool echo --tool echo --output json"
 ```
 
-## Verification
+## 验证方式
 
-Run the complete test suite:
+运行完整测试：
 
 ```bash
 mvn test
 ```
 
-Run the v1.5 feature verification example:
+运行 v1.5 功能验证示例：
 
 ```bash
 mvn -q -pl examples -am package exec:java
 ```
 
-Run the minimal echo walkthrough:
+运行最小 echo 示例：
 
 ```bash
 mvn -pl examples -am package exec:java -Dexec.mainClass=io.openharness4j.examples.SimpleAgentExample
 ```
 
-The verification example covers text-only responses, tool calls, permission denial, missing tools, invalid arguments, tool failures, empty LLM responses, usage aggregation, runtime events, retries, parallel tools, cost tracking, toolkit governance, memory, context files, skills, tasks, multi-agent execution, personal/team agents, plugins, provider fallback, observation export, CLI modes, and dry-run readiness.
+功能验证示例覆盖纯文本响应、工具调用、权限拒绝、缺失工具、非法参数、工具失败、空 LLM 响应、用量聚合、Runtime 事件、重试、并行工具、成本追踪、Toolkit 治理、Memory、上下文文件、Skills、Tasks、多智能体执行、个人/团队智能体、插件、Provider Fallback、观测导出、CLI 模式和 dry-run 就绪检查。
 
-## Compatibility
+## 兼容性
 
-OpenHarness4j keeps public contracts in the `1.5.x` snapshot line source-compatible unless a breaking change is explicitly documented. Production integrations should prefer public interfaces and records over internal implementation classes.
+OpenHarness4j 在 `1.5.x` snapshot 线内保持公开契约的源码兼容，除非明确记录破坏性变更。生产集成应优先依赖公开接口和 record，避免依赖内部实现类。
